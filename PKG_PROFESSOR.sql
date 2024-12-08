@@ -1,7 +1,17 @@
 CREATE OR REPLACE PACKAGE PKG_PROFESSOR AS
-    PROCEDURE LISTAR_TURMAS_POR_PROFESSOR;
-    FUNCTION TOTAL_TURMAS_PROFESSOR(P_ID_PROFESSOR IN NUMBER) RETURN NUMBER;
-    FUNCTION PROFESSOR_DA_DISCIPLINA(P_ID_DISCIPLINA IN NUMBER) RETURN VARCHAR2;
+    -- Cursor para total de turmas por professor
+    CURSOR c_total_turmas_por_professor IS
+        SELECT P.NOME, COUNT(C.ID_CURSO) AS total_turmas
+        FROM PROFESSOR P
+        JOIN CURSO C ON P.ID_PROFESSOR = C.ID_PROFESSOR
+        GROUP BY P.NOME
+        HAVING COUNT(C.ID_CURSO) > 1;
+
+    -- Function para total de turmas de um professor
+    FUNCTION total_turmas_por_professor(p_id_professor IN NUMBER) RETURN NUMBER;
+
+    -- Function para professor de uma disciplina
+    FUNCTION professor_de_disciplina(p_id_disciplina IN NUMBER) RETURN VARCHAR2;
 END PKG_PROFESSOR;
 
 /
@@ -9,48 +19,27 @@ END PKG_PROFESSOR;
 
 CREATE OR REPLACE PACKAGE BODY PKG_PROFESSOR AS
 
-    -- Cursor para listar professores e o total de turmas
-    PROCEDURE LISTAR_TURMAS_POR_PROFESSOR IS
-        CURSOR C_PROFESSORES_TURMAS IS
-        SELECT P.NOME, COUNT(T.ID_TURMA) AS TOTAL_TURMAS
+    -- Implementação da Function para total de turmas de um professor
+    FUNCTION total_turmas_por_professor(p_id_professor IN NUMBER) RETURN NUMBER IS
+        v_total NUMBER;
+    BEGIN
+        SELECT COUNT(*) INTO v_total
+        FROM CURSO
+        WHERE ID_PROFESSOR = p_id_professor;
+        RETURN v_total;
+    END total_turmas_por_professor;
+
+    -- Implementação da Function para professor de uma disciplina
+    FUNCTION professor_de_disciplina(p_id_disciplina IN NUMBER) RETURN VARCHAR2 IS
+        v_nome_professor VARCHAR2(100);
+    BEGIN
+        SELECT P.NOME INTO v_nome_professor
         FROM PROFESSOR P
-        JOIN TURMA T ON P.ID_PROFESSOR = T.ID_PROFESSOR
-        GROUP BY P.NOME
-        HAVING COUNT(T.ID_TURMA) > 1;
-    BEGIN
-        FOR R_PROFESSOR IN C_PROFESSORES_TURMAS LOOP
-            DBMS_OUTPUT.PUT_LINE('Professor: ' || R_PROFESSOR.NOME || ', Total de Turmas: ' || R_PROFESSOR.TOTAL_TURMAS);
-        END LOOP;
-    END LISTAR_TURMAS_POR_PROFESSOR;
-
-    -- Function para retornar o total de turmas de um professor
-    FUNCTION TOTAL_TURMAS_PROFESSOR(P_ID_PROFESSOR IN NUMBER) RETURN NUMBER IS
-        V_TOTAL_TURMAS NUMBER;
-    BEGIN
-        SELECT COUNT(ID_TURMA)
-        INTO V_TOTAL_TURMAS
-        FROM TURMA
-        WHERE ID_PROFESSOR = P_ID_PROFESSOR;
-
-        RETURN NVL(V_TOTAL_TURMAS, 0);
-    END TOTAL_TURMAS_PROFESSOR;
-
-    -- Function para retornar o professor responsável por uma disciplina
-    FUNCTION PROFESSOR_DA_DISCIPLINA(P_ID_DISCIPLINA IN NUMBER) RETURN VARCHAR2 IS
-        V_NOME_PROFESSOR VARCHAR2(100);
-    BEGIN
-        SELECT P.NOME
-        INTO V_NOME_PROFESSOR
-        FROM PROFESSOR P
-        JOIN TURMA T ON P.ID_PROFESSOR = T.ID_PROFESSOR
-        WHERE T.ID_DISCIPLINA = P_ID_DISCIPLINA
-        AND ROWNUM = 1; -- Para evitar múltiplos registros
-
-        RETURN V_NOME_PROFESSOR;
-    EXCEPTION
-        WHEN NO_DATA_FOUND THEN
-            RETURN 'Nenhum professor encontrado';
-    END PROFESSOR_DA_DISCIPLINA;
+        JOIN CURSO C ON P.ID_PROFESSOR = C.ID_PROFESSOR
+        WHERE C.ID_CURSO = p_id_disciplina;
+        RETURN v_nome_professor;
+    END professor_de_disciplina;
 
 END PKG_PROFESSOR;
+
 /
